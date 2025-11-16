@@ -1,0 +1,100 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  DONOR
+  RECIPIENT
+}
+
+enum DonationStatus {
+  PENDING
+  APPROVED
+  COMPLETED
+  REJECTED
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FULFILLED
+}
+
+enum BloodGroup {
+  A_POSITIVE
+  A_NEGATIVE
+  B_POSITIVE
+  B_NEGATIVE
+  AB_POSITIVE
+  AB_NEGATIVE
+  O_POSITIVE
+  O_NEGATIVE
+}
+
+model User {
+  id        String      @id @default(cuid())
+  email     String      @unique
+  password  String
+  name      String
+  role      UserRole
+  phone     String?
+  address   String?
+  bloodGroup BloodGroup?
+  age       Int?
+  gender    String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  // Relations
+  donations Donation[]
+  requests  Request[]
+}
+
+model Donation {
+  id          String          @id @default(cuid())
+  userId      String
+  date        DateTime
+  status      DonationStatus  @default(PENDING)
+  notes       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  // Relations
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Request {
+  id          String         @id @default(cuid())
+  requesterId String
+  bloodGroup  BloodGroup
+  units       Int
+  reason      String?
+  status      RequestStatus  @default(PENDING)
+  notes       String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // Relations
+  requester   User           @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+}
+
+model Inventory {
+  id          String     @id @default(cuid())
+  bloodGroup  BloodGroup @unique
+  quantity    Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}

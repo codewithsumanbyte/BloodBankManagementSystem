@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Appointment System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background-color: #dc2626;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #b91c1c;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        input, select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .result {
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            display: none;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .links {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+        .links a {
+            display: block;
+            margin-bottom: 10px;
+            color: #dc2626;
+            text-decoration: none;
+        }
+        .links a:hover {
+            text-decoration: underline;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Appointment System</h1>
+    
+    <div class="section">
+        <h2>Step 1: Create Test Donor User</h2>
+        <input type="text" id="donorName" placeholder="Donor Name" value="Test Donor" />
+        <input type="email" id="donorEmail" placeholder="Donor Email" value="donor@test.com" />
+        <input type="password" id="donorPassword" placeholder="Password" value="donor123" />
+        <select id="donorBloodGroup">
+            <option value="A_POSITIVE">A+</option>
+            <option value="A_NEGATIVE">A-</option>
+            <option value="B_POSITIVE">B+</option>
+            <option value="B_NEGATIVE">B-</option>
+            <option value="AB_POSITIVE">AB+</option>
+            <option value="AB_NEGATIVE">AB-</option>
+            <option value="O_POSITIVE">O+</option>
+            <option value="O_NEGATIVE">O-</option>
+        </select>
+        <button onclick="createDonor()">Create Donor</button>
+        <div id="donorResult" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h2>Step 2: Create Test Admin User</h2>
+        <input type="text" id="adminName" placeholder="Admin Name" value="Test Admin" />
+        <input type="email" id="adminEmail" placeholder="Admin Email" value="admin@test.com" />
+        <input type="password" id="adminPassword" placeholder="Password" value="admin123" />
+        <button onclick="createAdmin()">Create Admin</button>
+        <div id="adminResult" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h2>Step 3: Login as Donor</h2>
+        <input type="email" id="loginEmail" placeholder="Email" value="donor@test.com" />
+        <input type="password" id="loginPassword" placeholder="Password" value="donor123" />
+        <button onclick="loginAsDonor()">Login as Donor</button>
+        <div id="loginResult" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h2>Step 4: Create Appointment</h2>
+        <input type="datetime-local" id="appointmentDate" />
+        <input type="text" id="appointmentNotes" placeholder="Notes (optional)" />
+        <button onclick="createAppointment()" id="createAppointmentBtn" disabled>Create Appointment</button>
+        <div id="appointmentResult" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h2>Step 5: Check Appointments (Admin View)</h2>
+        <button onclick="checkDonations()">Check All Donations</button>
+        <div id="donationsResult"></div>
+    </div>
+
+    <div class="section">
+        <h2>Step 6: Update Appointment Status</h2>
+        <input type="text" id="donationId" placeholder="Donation ID" />
+        <select id="donationStatus">
+            <option value="PENDING">Pending</option>
+            <option value="APPROVED">Approved</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="REJECTED">Rejected</option>
+        </select>
+        <button onclick="updateDonationStatus()">Update Status</button>
+        <div id="updateResult" class="result"></div>
+    </div>
+
+    <div class="links">
+        <a href="/create-admin.html">Create Admin User (Advanced)</a>
+        <a href="/init-inventory.html">Initialize Inventory</a>
+        <a href="/">Go to Main Application</a>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let authToken = null;
+
+        async function createDonor() {
+            const name = document.getElementById('donorName').value;
+            const email = document.getElementById('donorEmail').value;
+            const password = document.getElementById('donorPassword').value;
+            const bloodGroup = document.getElementById('donorBloodGroup').value;
+            
+            const resultDiv = document.getElementById('donorResult');
+            resultDiv.style.display = 'none';
+            resultDiv.className = 'result';
+            
+            try {
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name, email, password, bloodGroup,
+                        role: 'DONOR',
+                        age: 30,
+                        gender: 'MALE'
+                    }),
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<strong>Success!</strong><br>Donor created: ${data.user.name}`;
+                    resultDiv.classList.add('success');
+                } else {
+                    resultDiv.textContent = 'Error: ' + data.error;
+                    resultDiv.classList.add('error');
+                }
+            } catch (error) {
+                resultDiv.textContent = 'Error: ' + error.message;
+                resultDiv.classList.add('error');
+            }
+            
+            resultDiv.style.display = 'block';
+        }
+
+        async function createAdmin() {
+            const name = document.getElementById('adminName').value;
+            const email = document.getElementById('adminEmail').value;
+            const password = document.getElementById('adminPassword').value;
+            
+            const resultDiv = document.getElementById('adminResult');
+            resultDiv.style.display = 'none';
+            resultDiv.className = 'result';
+            
+            try {
+                const response = await fetch('/api/auth/create-admin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name, email, password }),
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<strong>Success!</strong><br>Admin created: ${data.user.name}`;
+                    resultDiv.classList.add('success');
+                } else {
+                    resultDiv.textContent = 'Error: ' + data.error;
+                    resultDiv.classList.add('error');
+                }
+            } catch (error) {
+                resultDiv.textContent = 'Error: ' + error.message;
+                resultDiv.classList.add('error');
+            }
+            
+            resultDiv.style.display = 'block';
+        }
+
+        async function loginAsDonor() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            const resultDiv = document.getElementById('loginResult');
+            resultDiv.style.display = 'none';
+            resultDiv.className = 'result';
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password }),
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentUser = data.user;
+                    authToken = 'simulated-token';
+                    resultDiv.innerHTML = `<strong>Success!</strong><br>Logged in as: ${data.user.name}<br>User ID: ${data.user.id}`;
+                    resultDiv.classList.add('success');
+                    document.getElementById('createAppointmentBtn').disabled = false;
+                } else {
+                    resultDiv.textContent = 'Error: ' + data.error;
+                    resultDiv.classList.add('error');
+                }
+            } catch (error) {
+                resultDiv.textContent = 'Error: ' + error.message;
+                resultDiv.classList.add('error');
+            }
+            
+            resultDiv.style.display = 'block';
+        }
+
+        async function createAppointment() {
+            if (!currentUser) {
+                alert('Please login first!');
+                return;
+            }
+
+            const date = document.getElementById('appointmentDate').value;
+            const notes = document.getElementById('appointmentNotes').value;
+            
+            const resultDiv = document.getElementById('appointmentResult');
+            resultDiv.style.display = 'none';
+            resultDiv.className = 'result';
+            
+            try {
+                const response = await fetch('/api/donations', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        userId: currentUser.id,
+                        date,
+                        notes
+                    }),
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <strong>Success!</strong><br>
+                        Appointment created!<br>
+                        Donation ID: ${data.donation.id}<br>
+                        Status: ${data.donation.status}<br>
+                        Date: ${new Date(data.donation.date).toLocaleString()}
+                    `;
+                    resultDiv.classList.add('success');
+                } else {
+                    resultDiv.textContent = 'Error: ' + data.error;
+                    resultDiv.classList.add('error');
+                }
+            } catch (error) {
+                resultDiv.textContent = 'Error: ' + error.message;
+                resultDiv.classList.add('error');
+            }
+            
+            resultDiv.style.display = 'block';
+        }
+
+        async function checkDonations() {
+            const resultDiv = document.getElementById('donationsResult');
+            
+            try {
+                const response = await fetch('/api/donations/all');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    let html = '<h3>All Donations:</h3>';
+                    if (data.donations.length === 0) {
+                        html += '<p>No donations found</p>';
+                    } else {
+                        html += '<table border="1" style="width: 100%; border-collapse: collapse;">';
+                        html += '<tr><th>ID</th><th>Donor</th><th>Date</th><th>Status</th><th>Actions</th></tr>';
+                        data.donations.forEach(donation => {
+                            html += `<tr>`;
+                            html += `<td>${donation.id}</td>`;
+                            html += `<td>${donation.user.name} (${donation.user.bloodGroup})</td>`;
+                            html += `<td>${new Date(donation.date).toLocaleString()}</td>`;
+                            html += `<td>${donation.status}</td>`;
+                            html += `<td><button onclick="document.getElementById('donationId').value='${donation.id}';">Select</button></td>`;
+                            html += `</tr>`;
+                        });
+                        html += '</table>';
+                    }
+                    resultDiv.innerHTML = html;
+                } else {
+                    resultDiv.textContent = 'Error: ' + data.error;
+                    resultDiv.style.color = 'red';
+                }
+            } catch (error) {
+                resultDiv.textContent = 'Error: ' + error.message;
+                resultDiv.style.color = 'red';
+            }
+        }
+
+        async function updateDonationStatus() {
+            const donationId = document.getElementById('donationId').value;
+            const status = document.getElementById('donationStatus').value;
+            
+            const resultDiv = document.getElementById('updateResult');
+            resultDiv.style.display = 'none';
+            resultDiv.className = 'result';
+            
+            if (!donationId) {
+                resultDiv.textContent = 'Please select a donation first';
+                resultDiv.classList.add('error');
+                resultDiv.style.display = 'block';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/donations/update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ donationId, status }),
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<strong>Success!</strong><br>Donation status updated to: ${status}`;
+                    resultDiv.classList.add('success');
+                    // Refresh the donations list
+                    checkDonations();
+                } else {
+                    resultDiv.textContent = 'Error: ' + data.error;
+                    resultDiv.classList.add('error');
+                }
+            } catch (error) {
+                resultDiv.textContent = 'Error: ' + error.message;
+                resultDiv.classList.add('error');
+            }
+            
+            resultDiv.style.display = 'block';
+        }
+
+        // Set default appointment date to tomorrow
+        window.onload = function() {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(10, 0, 0, 0);
+            document.getElementById('appointmentDate').value = tomorrow.toISOString().slice(0, 16);
+        };
+    </script>
+</body>
+</html>
